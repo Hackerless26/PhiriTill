@@ -1,0 +1,19 @@
+{
+	"geolocation": {
+		"data": {
+			"city": "Lusaka",
+			"country": {
+				"code": "ZM",
+				"name": "Zambia"
+			},
+			"subdivision": {
+				"code": "09",
+				"name": "Lusaka Province"
+			},
+			"timezone": "Africa/Lusaka",
+			"latitude": -15.4183,
+			"longitude": 28.287
+		},
+		"timestamp": 1768246279939
+	}
+}

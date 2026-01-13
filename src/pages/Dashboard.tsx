@@ -17,17 +17,23 @@ export default function Dashboard() {
   const [todayProfit, setTodayProfit] = useState(0);
   const [statsLoading, setStatsLoading] = useState(false);
 
-  const lowStockCount = useMemo(
-    () =>
-      products.filter(
-        (product) => product.stock_on_hand <= product.low_stock_threshold
-      ).length,
+  const activeProducts = useMemo(
+    () => products.filter((product) => product.is_active),
     [products]
   );
 
+  const lowStockCount = useMemo(
+    () =>
+      activeProducts.filter(
+        (product) => product.stock_on_hand <= product.low_stock_threshold
+      ).length,
+    [activeProducts]
+  );
+
   const totalStock = useMemo(
-    () => products.reduce((sum, product) => sum + product.stock_on_hand, 0),
-    [products]
+    () =>
+      activeProducts.reduce((sum, product) => sum + product.stock_on_hand, 0),
+    [activeProducts]
   );
 
   const fetchWithTimeout = async (url: string, timeoutMs: number) => {
@@ -355,9 +361,15 @@ export default function Dashboard() {
         </div>
         {loadingProducts ? (
           <p className="muted">Loading products...</p>
-        ) : products.length ? (
+        ) : activeProducts.length ? (
           <div className="list">
-            {products.slice(0, 6).map((product) => (
+            {activeProducts
+              .filter(
+                (product) =>
+                  product.stock_on_hand <= product.low_stock_threshold
+              )
+              .slice(0, 6)
+              .map((product) => (
               <div className="list__item" key={product.id}>
                 <div>
                   <p className="list__title">{product.name}</p>

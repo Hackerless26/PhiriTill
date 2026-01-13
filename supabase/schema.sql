@@ -274,7 +274,7 @@ begin
           barcode = p_barcode,
           category = p_category,
           price = p_price,
-          cost = p_cost,
+          cost = coalesce(p_cost, cost),
           stock_on_hand = coalesce(p_stock_on_hand, 0),
           low_stock_threshold = coalesce(p_low_stock_threshold, 0),
           is_active = coalesce(p_is_active, true)

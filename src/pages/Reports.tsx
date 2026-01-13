@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { jsPDF } from "jspdf";
 import { useApp } from "../lib/appContext";
 import { formatZmw } from "../lib/currency";
 import { supabase } from "../lib/supabaseClient";
@@ -8,11 +10,12 @@ type SaleItemRow = {
   quantity: number;
   price: number;
   cost: number;
-  products: { name: string }[] | null;
+  product: { name: string } | null;
 };
 
 type SaleRow = {
   id: string;
+  receipt_no: string;
   total: number;
   created_at: string;
   sale_items: SaleItemRow[];
@@ -20,6 +23,7 @@ type SaleRow = {
 
 export default function Reports() {
   const { selectedBranchId } = useApp();
+  const navigate = useNavigate();
   const [sales, setSales] = useState<SaleRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +36,7 @@ export default function Reports() {
       let salesPromise = supabase
         .from("sales")
         .select(
-          "id,total,created_at,sale_items(product_id,quantity,price,cost,products(name))"
+          "id,receipt_no,total,created_at,sale_items(product_id,quantity,price,cost,product:products(name))"
         )
         .order("created_at", { ascending: false });
 
@@ -105,7 +109,7 @@ export default function Reports() {
     >();
     filteredSales.forEach((sale) => {
       (sale.sale_items ?? []).forEach((item) => {
-        const name = item.products?.[0]?.name ?? "Unknown";
+        const name = item.product?.name ?? "Unknown";
         const entry = productMap.get(item.product_id) ?? {
           name,
           qty: 0,
@@ -120,6 +124,81 @@ export default function Reports() {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
   }, [filteredSales]);
+
+  const handleExportPdf = () => {
+    const doc = new jsPDF();
+    let y = 18;
+    const lineHeight = 6;
+    const sectionGap = 8;
+    const rangeLabel =
+      range === "today" ? "Today" : range === "week" ? "This week" : "This month";
+
+    const ensureSpace = (extra: number) => {
+      if (y + extra >= 280) {
+        doc.addPage();
+        y = 18;
+      }
+    };
+
+    doc.setFontSize(16);
+    doc.text("PoxPOS Report", 14, y);
+    y += sectionGap;
+
+    doc.setFontSize(10);
+    doc.text(`Range: ${rangeLabel}`, 14, y);
+    y += lineHeight;
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, y);
+    y += sectionGap;
+
+    doc.setFontSize(12);
+    doc.text(`Total sales: ${formatZmw(totalSales)}`, 14, y);
+    y += lineHeight;
+    doc.text(`Transactions: ${totalTransactions}`, 14, y);
+    y += sectionGap;
+
+    doc.setFontSize(12);
+    doc.text("Best sellers", 14, y);
+    y += lineHeight;
+    doc.setFontSize(10);
+    if (bestSellers.length) {
+      bestSellers.forEach((item) => {
+        ensureSpace(lineHeight);
+        doc.text(
+          `${item.name} | Qty ${item.qty} | ${formatZmw(item.revenue)}`,
+          14,
+          y
+        );
+        y += lineHeight;
+      });
+    } else {
+      doc.text("No best sellers for this range.", 14, y);
+      y += lineHeight;
+    }
+
+    y += sectionGap;
+    ensureSpace(sectionGap);
+    doc.setFontSize(12);
+    doc.text("Sales history", 14, y);
+    y += lineHeight;
+    doc.setFontSize(10);
+    if (filteredSales.length) {
+      filteredSales.forEach((sale) => {
+        ensureSpace(lineHeight);
+        const itemCount = sale.sale_items?.length ?? 0;
+        doc.text(
+          `${sale.receipt_no} | ${new Date(sale.created_at).toLocaleString()} | Items ${itemCount} | ${formatZmw(sale.total)}`,
+          14,
+          y
+        );
+        y += lineHeight;
+      });
+    } else {
+      doc.text("No sales in this range.", 14, y);
+      y += lineHeight;
+    }
+
+    doc.save(`report-${range}.pdf`);
+  };
 
   return (
     <div className="page">
@@ -170,7 +249,14 @@ export default function Reports() {
             <h3>Best sellers</h3>
             <p className="muted">Top products by revenue.</p>
           </div>
-          <button className="app__ghost">View all</button>
+          <div className="button-row">
+            <button className="app__ghost" onClick={() => navigate("/sales")}>
+              View all
+            </button>
+            <button className="app__ghost" onClick={handleExportPdf}>
+              Export PDF
+            </button>
+          </div>
         </div>
         {bestSellers.length ? (
           <div className="list">

@@ -1,5 +1,5 @@
 import type { Handler } from "@netlify/functions";
-import { createUserClient, supabaseAnon } from "./_supabase";
+import { createUserClient } from "./_supabase";
 
 type ReceiveItem = {
   product_id: string;
@@ -37,13 +37,6 @@ export const handler: Handler = async (event) => {
       return jsonResponse(401, { error: "Missing auth token." });
     }
 
-    const { data: authData, error: authError } =
-      await supabaseAnon.auth.getUser(token);
-
-    if (authError || !authData.user) {
-      return jsonResponse(401, { error: "Invalid auth token." });
-    }
-
     const payload = JSON.parse(event.body) as ReceivePayload;
     const items = payload.items ?? [];
 
@@ -59,7 +52,14 @@ export const handler: Handler = async (event) => {
     });
 
     if (error) {
-      return jsonResponse(400, { error: error.message });
+      const message = error.message || "Request failed.";
+      if (message.includes("Not authenticated")) {
+        return jsonResponse(401, { error: message });
+      }
+      if (message.includes("Not allowed")) {
+        return jsonResponse(403, { error: message });
+      }
+      return jsonResponse(400, { error: message });
     }
 
     return jsonResponse(200, { status: "ok" });

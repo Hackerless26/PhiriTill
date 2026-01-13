@@ -109,15 +109,20 @@ export default function PurchaseOrders() {
     await reloadProducts();
   };
 
-  const hasProducts = products.length > 0;
+  const activeProducts = useMemo(
+    () => products.filter((product) => product.is_active),
+    [products]
+  );
+
+  const hasProducts = activeProducts.length > 0;
 
   const productOptions = useMemo(
     () =>
-      products.map((product) => ({
+      activeProducts.map((product) => ({
         id: product.id,
         name: product.name,
       })),
-    [products]
+    [activeProducts]
   );
 
   return (

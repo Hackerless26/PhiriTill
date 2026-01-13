@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
-import { supplierUpsert } from "../lib/posApi";
+import { supplierDelete, supplierUpsert } from "../lib/posApi";
 
 type SupplierRow = {
   id: string;
@@ -14,6 +14,7 @@ export default function Suppliers() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
     id: "",
@@ -80,6 +81,25 @@ export default function Suppliers() {
       setError(err instanceof Error ? err.message : "Save failed.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!form.id) return;
+    const confirmed = window.confirm(
+      "Delete this supplier? This cannot be undone."
+    );
+    if (!confirmed) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await supplierDelete({ id: form.id });
+      setShowModal(false);
+      loadSuppliers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete failed.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -172,13 +192,22 @@ export default function Suppliers() {
             </div>
             {error ? <p className="error">{error}</p> : null}
             <div className="modal__actions">
+              {form.id ? (
+                <button
+                  className="app__ghost"
+                  onClick={handleDelete}
+                  disabled={saving || deleting}
+                >
+                  {deleting ? "Deleting..." : "Delete"}
+                </button>
+              ) : null}
               <button className="app__ghost" onClick={() => setShowModal(false)}>
                 Cancel
               </button>
               <button
                 className="app__primary"
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || deleting}
               >
                 {saving ? "Saving..." : "Save supplier"}
               </button>

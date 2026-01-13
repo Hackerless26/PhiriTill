@@ -41,7 +41,18 @@ async function getAuthToken() {
 }
 
 async function callFunction<T>(path: string, payload: unknown): Promise<T> {
-  const token = await getAuthToken();
+  const sendRequest = async (accessToken: string) => {
+    return fetch(`/.netlify/functions/${path}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  };
+
+  let token = await getAuthToken();
 
   if (!token) {
     throw new Error("Not authenticated. Please sign in again.");
@@ -49,19 +60,28 @@ async function callFunction<T>(path: string, payload: unknown): Promise<T> {
 
   let response: Response;
   try {
-    response = await fetch(`/.netlify/functions/${path}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    response = await sendRequest(token);
   } catch (error) {
     throw new Error("Network error. Please try again.");
   }
 
-  const json = await response.json();
+  if (response.status === 401) {
+    const refreshed = await supabase.auth.refreshSession();
+    token = refreshed.data.session?.access_token ?? null;
+    if (!token) {
+      await supabase.auth.signOut();
+      throw new Error("Session expired. Please sign in again.");
+    }
+    response = await sendRequest(token);
+  }
+
+  let json: any = {};
+  try {
+    json = await response.json();
+  } catch {
+    json = {};
+  }
+
   if (!response.ok) {
     if (response.status === 401) {
       await supabase.auth.signOut();
@@ -70,7 +90,7 @@ async function callFunction<T>(path: string, payload: unknown): Promise<T> {
     throw new Error(json.error ?? "Request failed");
   }
 
-  return json;
+  return json as T;
 }
 
 export function checkout(payload: CheckoutPayload) {
@@ -119,6 +139,14 @@ export function supplierUpsert(payload: SupplierUpsertPayload) {
     "supplier-upsert",
     payload
   );
+}
+
+type SupplierDeletePayload = {
+  id: string;
+};
+
+export function supplierDelete(payload: SupplierDeletePayload) {
+  return callFunction<{ status: string }>("supplier-delete", payload);
 }
 
 type PurchaseOrderCreatePayload = {

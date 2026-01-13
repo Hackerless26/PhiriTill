@@ -10,7 +10,7 @@ type StockMovementRow = {
   reason: string | null;
   created_by: string | null;
   created_at: string;
-  products: { name: string }[] | null;
+  product: { name: string } | null;
 };
 
 export default function StockMovements() {
@@ -29,7 +29,7 @@ export default function StockMovements() {
       let query = supabase
         .from("stock_movements")
         .select(
-          "id,product_id,qty_change,movement_type,reason,created_by,created_at,products(name)"
+          "id,product_id,qty_change,movement_type,reason,created_by,created_at,product:products(name)"
         )
         .order("created_at", { ascending: false });
       if (selectedBranchId) {
@@ -93,7 +93,7 @@ export default function StockMovements() {
   const filteredMovements = useMemo(() => {
     const term = search.trim().toLowerCase();
     return movements.filter((move) => {
-      const name = move.products?.[0]?.name ?? "";
+      const name = move.product?.name ?? "";
       const matchesName = term ? name.toLowerCase().includes(term) : true;
       const matchesType =
         typeFilter === "all" ? true : move.movement_type === typeFilter;
@@ -148,7 +148,7 @@ export default function StockMovements() {
                 filteredMovements.map((move) => (
                   <tr key={move.id}>
                     <td>{new Date(move.created_at).toLocaleString()}</td>
-                    <td>{move.products?.[0]?.name ?? "Unknown"}</td>
+                    <td>{move.product?.name ?? "Unknown"}</td>
                     <td>{move.movement_type}</td>
                     <td>{move.qty_change}</td>
                     <td>{move.reason ?? "-"}</td>

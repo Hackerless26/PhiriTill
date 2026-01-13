@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { jsPDF } from "jspdf";
 import { useApp } from "../lib/appContext";
 import { formatZmw } from "../lib/currency";
 import { supabase } from "../lib/supabaseClient";
@@ -71,6 +72,51 @@ export default function SalesHistory() {
     );
   }, [sales, search]);
 
+  const handleExportPdf = () => {
+    const doc = new jsPDF();
+    let y = 18;
+    const lineHeight = 6;
+    const sectionGap = 8;
+
+    const ensureSpace = (extra: number) => {
+      if (y + extra >= 280) {
+        doc.addPage();
+        y = 18;
+      }
+    };
+
+    doc.setFontSize(16);
+    doc.text("Sales history report", 14, y);
+    y += sectionGap;
+
+    doc.setFontSize(10);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, y);
+    y += sectionGap;
+
+    doc.setFontSize(12);
+    doc.text(`Total transactions: ${filteredSales.length}`, 14, y);
+    y += sectionGap;
+
+    doc.setFontSize(10);
+    if (filteredSales.length) {
+      filteredSales.forEach((sale) => {
+        ensureSpace(lineHeight);
+        const itemCount = sale.sale_items?.length ?? 0;
+        doc.text(
+          `${sale.receipt_no} | ${new Date(sale.created_at).toLocaleString()} | Items ${itemCount} | ${formatZmw(sale.total)}`,
+          14,
+          y
+        );
+        y += lineHeight;
+      });
+    } else {
+      doc.text("No sales found.", 14, y);
+      y += lineHeight;
+    }
+
+    doc.save("sales-history.pdf");
+  };
+
   return (
     <div className="page">
       <section className="card">
@@ -79,7 +125,9 @@ export default function SalesHistory() {
             <h2>Sales history</h2>
             <p className="muted">Receipts and transaction totals.</p>
           </div>
-          <button className="app__ghost">Export</button>
+          <button className="app__ghost" onClick={handleExportPdf}>
+            Export PDF
+          </button>
         </div>
         <div className="toolbar">
           <input

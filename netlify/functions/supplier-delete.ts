@@ -2,10 +2,8 @@ import { Buffer } from "buffer";
 import type { Handler } from "@netlify/functions";
 import { supabaseService } from "./_supabase";
 
-type BranchPayload = {
+type SupplierDeletePayload = {
   id?: string;
-  name?: string;
-  is_default?: boolean;
 };
 
 function jsonResponse(statusCode: number, body: unknown) {
@@ -58,51 +56,26 @@ export const handler: Handler = async (event) => {
       .eq("user_id", userId)
       .single();
 
-    if (profileError || !profile || profile.role !== "admin") {
+    if (profileError || !profile || profile.role === "cashier") {
       return jsonResponse(403, { error: "Not authorized." });
     }
 
-    const payload = JSON.parse(event.body) as BranchPayload;
-    const name = payload.name?.trim();
+    const payload = JSON.parse(event.body) as SupplierDeletePayload;
 
-    if (!name) {
-      return jsonResponse(400, { error: "Name is required." });
+    if (!payload.id) {
+      return jsonResponse(400, { error: "Supplier ID is required." });
     }
 
-    if (payload.id) {
-      const { error } = await supabaseService
-        .from("branches")
-        .update({
-          name,
-          is_default: payload.is_default ?? false,
-        })
-        .eq("id", payload.id);
-
-      if (error) {
-        return jsonResponse(400, { error: error.message });
-      }
-
-      return jsonResponse(200, { status: "ok", branch_id: payload.id });
-    }
-
-    if (payload.is_default) {
-      await supabaseService.from("branches").update({ is_default: false });
-    }
-
-    const { data, error } = await supabaseService
-      .from("branches")
-      .insert({
-        name,
-        is_default: payload.is_default ?? false,
-      })
-      .select("id")
-      .single();
+    const { error } = await supabaseService
+      .from("suppliers")
+      .delete()
+      .eq("id", payload.id);
 
     if (error) {
       return jsonResponse(400, { error: error.message });
     }
 
-    return jsonResponse(200, { status: "ok", branch_id: data.id });
+    return jsonResponse(200, { status: "ok" });
   } catch (error) {
     return jsonResponse(500, { error: "Unexpected server error." });
   }

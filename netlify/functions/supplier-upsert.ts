@@ -1,5 +1,6 @@
+import { Buffer } from "buffer";
 import type { Handler } from "@netlify/functions";
-import { supabaseAnon, supabaseService } from "./_supabase";
+import { supabaseService } from "./_supabase";
 
 type SupplierPayload = {
   id?: string;
@@ -18,6 +19,21 @@ function jsonResponse(statusCode: number, body: unknown) {
   };
 }
 
+function getUserIdFromToken(token: string): string | null {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const payload = parts[1]
+    .replace(/-/g, "+")
+    .replace(/_/g, "/")
+    .padEnd(parts[1].length + ((4 - (parts[1].length % 4)) % 4), "=");
+  try {
+    const decoded = JSON.parse(Buffer.from(payload, "base64").toString("utf8"));
+    return typeof decoded.sub === "string" ? decoded.sub : null;
+  } catch {
+    return null;
+  }
+}
+
 export const handler: Handler = async (event) => {
   try {
     if (!event.body) {
@@ -32,17 +48,15 @@ export const handler: Handler = async (event) => {
       return jsonResponse(401, { error: "Missing auth token." });
     }
 
-    const { data: authData, error: authError } =
-      await supabaseAnon.auth.getUser(token);
-
-    if (authError || !authData.user) {
+    const userId = getUserIdFromToken(token);
+    if (!userId) {
       return jsonResponse(401, { error: "Invalid auth token." });
     }
 
     const { data: profile, error: profileError } = await supabaseService
       .from("profiles")
       .select("role")
-      .eq("user_id", authData.user.id)
+      .eq("user_id", userId)
       .single();
 
     if (profileError || !profile || profile.role === "cashier") {

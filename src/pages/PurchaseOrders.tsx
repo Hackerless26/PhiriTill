@@ -13,7 +13,7 @@ type PurchaseOrderRow = {
   status: string;
   reference: string | null;
   created_at: string;
-  suppliers: { name: string } | null;
+  suppliers: { name: string }[] | null;
 };
 
 type PoItemInput = {
@@ -35,20 +35,21 @@ export default function PurchaseOrders() {
   const [items, setItems] = useState<PoItemInput[]>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const loadData = () => {
+  const loadData = async () => {
     setLoading(true);
-    Promise.all([
-      supabase.from("suppliers").select("id,name").order("name"),
-      supabase
-        .from("purchase_orders")
-        .select("id,status,reference,created_at,suppliers(name)")
-        .order("created_at", { ascending: false }),
-    ])
-      .then(([suppliersResult, ordersResult]) => {
-        setSuppliers(suppliersResult.data ?? []);
-        setPurchaseOrders(ordersResult.data ?? []);
-      })
-      .finally(() => setLoading(false));
+    try {
+      const [suppliersResult, ordersResult] = await Promise.all([
+        supabase.from("suppliers").select("id,name").order("name"),
+        supabase
+          .from("purchase_orders")
+          .select("id,status,reference,created_at,suppliers(name)")
+          .order("created_at", { ascending: false }),
+      ]);
+      setSuppliers(suppliersResult.data ?? []);
+      setPurchaseOrders(ordersResult.data ?? []);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -146,7 +147,7 @@ export default function PurchaseOrders() {
               {purchaseOrders.length ? (
                 purchaseOrders.map((po) => (
                   <tr key={po.id}>
-                    <td>{po.suppliers?.name ?? "-"}</td>
+                    <td>{po.suppliers?.[0]?.name ?? "-"}</td>
                     <td>{po.status}</td>
                     <td>{new Date(po.created_at).toLocaleString()}</td>
                     <td>

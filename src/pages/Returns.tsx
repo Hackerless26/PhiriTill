@@ -32,14 +32,17 @@ export default function Returns() {
 
   const loadReturns = () => {
     setLoading(true);
-    supabase
-      .from("returns")
-      .select("id,return_type,reason,created_at")
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        setReturns(data ?? []);
-      })
-      .finally(() => setLoading(false));
+    (async () => {
+      try {
+        const res = await supabase
+          .from("returns")
+          .select("id,return_type,reason,created_at")
+          .order("created_at", { ascending: false });
+        setReturns(res.data ?? []);
+      } finally {
+        setLoading(false);
+      }
+    })();
   };
 
   useEffect(() => {

@@ -8,7 +8,7 @@ type SaleItemRow = {
   quantity: number;
   price: number;
   cost: number;
-  products: { name: string } | null;
+  products: { name: string }[] | null;
 };
 
 type SaleRow = {
@@ -25,41 +25,35 @@ export default function Reports() {
   const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState<"today" | "week" | "month">("today");
 
-  const loadReports = () => {
+  const loadReports = async () => {
     setLoading(true);
     setError(null);
-    let salesPromise = supabase
-      .from("sales")
-      .select(
-        "id,total,created_at,sale_items(product_id,quantity,price,cost,products(name))"
-      )
-      .order("created_at", { ascending: false });
+    try {
+      let salesPromise = supabase
+        .from("sales")
+        .select(
+          "id,total,created_at,sale_items(product_id,quantity,price,cost,products(name))"
+        )
+        .order("created_at", { ascending: false });
 
-    if (selectedBranchId) {
-      salesPromise = salesPromise.eq("branch_id", selectedBranchId);
+      if (selectedBranchId) {
+        salesPromise = salesPromise.eq("branch_id", selectedBranchId);
+      }
+
+      const salesResult = await salesPromise;
+      if (salesResult.error) {
+        setError(salesResult.error.message);
+        setSales([]);
+      } else {
+        setSales(salesResult.data ?? []);
+      }
+    } finally {
+      setLoading(false);
     }
-
-    salesPromise
-      .then((salesResult) => {
-        if (salesResult.error) {
-          setError(salesResult.error.message);
-          setSales([]);
-        } else {
-          setSales(salesResult.data ?? []);
-        }
-      })
-      .finally(() => {
-        setLoading(false);
-      });
   };
 
   useEffect(() => {
-    let active = true;
     loadReports();
-
-    return () => {
-      active = false;
-    };
   }, [selectedBranchId]);
 
   useEffect(() => {
@@ -111,7 +105,7 @@ export default function Reports() {
     >();
     filteredSales.forEach((sale) => {
       (sale.sale_items ?? []).forEach((item) => {
-        const name = item.products?.name ?? "Unknown";
+        const name = item.products?.[0]?.name ?? "Unknown";
         const entry = productMap.get(item.product_id) ?? {
           name,
           qty: 0,

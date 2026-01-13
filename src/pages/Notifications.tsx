@@ -9,17 +9,19 @@ export default function Notifications() {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    supabase
-      .from("notifications")
-      .select("id,title,body,created_at")
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
+    (async () => {
+      try {
+        const res = await supabase
+          .from("notifications")
+          .select("id,title,body,created_at")
+          .order("created_at", { ascending: false });
         if (!active) return;
+        const { data, error } = res as any;
         if (error || !data) {
           setNotifications(getNotifications());
         } else {
           setNotifications(
-            data.map((row) => ({
+            data.map((row: any) => ({
               id: row.id,
               title: row.title,
               body: row.body,
@@ -27,10 +29,11 @@ export default function Notifications() {
             }))
           );
         }
-      })
-      .finally(() => {
+      } finally {
         if (active) setLoading(false);
-      });
+      }
+    })();
+
     return () => {
       active = false;
     };

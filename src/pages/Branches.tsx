@@ -20,16 +20,17 @@ export default function Branches() {
     is_default: false,
   });
 
-  const loadBranches = () => {
+  const loadBranches = async () => {
     setLoading(true);
-    supabase
-      .from("branches")
-      .select("id,name,is_default")
-      .order("name", { ascending: true })
-      .then(({ data }) => {
-        setBranches(data ?? []);
-      })
-      .finally(() => setLoading(false));
+    try {
+      const res = await supabase
+        .from("branches")
+        .select("id,name,is_default")
+        .order("name", { ascending: true });
+      setBranches(res.data ?? []);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

@@ -10,7 +10,7 @@ type StockMovementRow = {
   reason: string | null;
   created_by: string | null;
   created_at: string;
-  products: { name: string } | null;
+  products: { name: string }[] | null;
 };
 
 export default function StockMovements() {
@@ -22,37 +22,33 @@ export default function StockMovements() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [profileNames, setProfileNames] = useState<Record<string, string>>({});
 
-  const loadMovements = () => {
+  const loadMovements = async () => {
     setLoading(true);
     setError(null);
-    let query = supabase
-      .from("stock_movements")
-      .select("id,product_id,qty_change,movement_type,reason,created_by,created_at,products(name)")
-      .order("created_at", { ascending: false });
-    if (selectedBranchId) {
-      query = query.eq("branch_id", selectedBranchId);
+    try {
+      let query = supabase
+        .from("stock_movements")
+        .select(
+          "id,product_id,qty_change,movement_type,reason,created_by,created_at,products(name)"
+        )
+        .order("created_at", { ascending: false });
+      if (selectedBranchId) {
+        query = query.eq("branch_id", selectedBranchId);
+      }
+      const res = await query;
+      if (res.error) {
+        setError(res.error.message);
+        setMovements([]);
+      } else {
+        setMovements(res.data ?? []);
+      }
+    } finally {
+      setLoading(false);
     }
-    query
-      .then(({ data, error: fetchError }) => {
-        if (fetchError) {
-          setError(fetchError.message);
-          setMovements([]);
-        } else {
-          setMovements(data ?? []);
-        }
-      })
-      .finally(() => {
-        setLoading(false);
-      });
   };
 
   useEffect(() => {
-    let active = true;
     loadMovements();
-
-    return () => {
-      active = false;
-    };
   }, [selectedBranchId]);
 
   useEffect(() => {
@@ -97,7 +93,7 @@ export default function StockMovements() {
   const filteredMovements = useMemo(() => {
     const term = search.trim().toLowerCase();
     return movements.filter((move) => {
-      const name = move.products?.name ?? "";
+      const name = move.products?.[0]?.name ?? "";
       const matchesName = term ? name.toLowerCase().includes(term) : true;
       const matchesType =
         typeFilter === "all" ? true : move.movement_type === typeFilter;
@@ -152,7 +148,7 @@ export default function StockMovements() {
                 filteredMovements.map((move) => (
                   <tr key={move.id}>
                     <td>{new Date(move.created_at).toLocaleString()}</td>
-                    <td>{move.products?.name ?? "Unknown"}</td>
+                    <td>{move.products?.[0]?.name ?? "Unknown"}</td>
                     <td>{move.movement_type}</td>
                     <td>{move.qty_change}</td>
                     <td>{move.reason ?? "-"}</td>

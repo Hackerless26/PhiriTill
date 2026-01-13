@@ -1,5 +1,5 @@
 insert into storage.buckets (id, name, public)
-values ('avatars', 'avatars', true)
+values ('avatars', 'avatars', false)
 on conflict (id) do nothing;
 
 drop policy if exists "avatars_select" on storage.objects;

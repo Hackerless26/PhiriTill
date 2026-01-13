@@ -21,35 +21,30 @@ export default function SalesHistory() {
   const loadSales = () => {
     setLoading(true);
     setError(null);
-
-    let query = supabase
-      .from("sales")
-      .select("id,receipt_no,total,created_at,sale_items(id)")
-      .order("created_at", { ascending: false });
-    if (selectedBranchId) {
-      query = query.eq("branch_id", selectedBranchId);
-    }
-    query
-      .then(({ data, error: fetchError }) => {
-        if (fetchError) {
-          setError(fetchError.message);
+    (async () => {
+      try {
+        let query = supabase
+          .from("sales")
+          .select("id,receipt_no,total,created_at,sale_items(id)")
+          .order("created_at", { ascending: false });
+        if (selectedBranchId) {
+          query = query.eq("branch_id", selectedBranchId);
+        }
+        const res = await query;
+        if (res.error) {
+          setError(res.error.message);
           setSales([]);
         } else {
-          setSales(data ?? []);
+          setSales(res.data ?? []);
         }
-      })
-      .finally(() => {
+      } finally {
         setLoading(false);
-      });
+      }
+    })();
   };
 
   useEffect(() => {
-    let active = true;
     loadSales();
-
-    return () => {
-      active = false;
-    };
   }, [selectedBranchId]);
 
   useEffect(() => {

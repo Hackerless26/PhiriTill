@@ -24,18 +24,21 @@ export default function Suppliers() {
 
   const loadSuppliers = () => {
     setLoading(true);
-    supabase
-      .from("suppliers")
-      .select("id,name,phone,email")
-      .order("name", { ascending: true })
-      .then(({ data, error: fetchError }) => {
-        if (fetchError) {
+    (async () => {
+      try {
+        const res = await supabase
+          .from("suppliers")
+          .select("id,name,phone,email")
+          .order("name", { ascending: true });
+        if (res.error) {
           setSuppliers([]);
         } else {
-          setSuppliers(data ?? []);
+          setSuppliers(res.data ?? []);
         }
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        setLoading(false);
+      }
+    })();
   };
 
   useEffect(() => {

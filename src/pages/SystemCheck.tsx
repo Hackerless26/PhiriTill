@@ -9,7 +9,7 @@ type CheckResult = {
 
 async function pingFunction(path: string) {
   try {
-    const response = await fetch(`/.netlify/functions/${path}`, {
+    const response = await fetch(`/api/${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "{}",

@@ -42,7 +42,7 @@ async function getAuthToken() {
 
 async function callFunction<T>(path: string, payload: unknown): Promise<T> {
   const sendRequest = async (accessToken: string) => {
-    return fetch(`/.netlify/functions/${path}`, {
+    return fetch(`/api/${path}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,

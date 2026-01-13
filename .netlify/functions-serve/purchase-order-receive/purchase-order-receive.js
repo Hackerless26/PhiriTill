@@ -1,1 +1,0 @@
-module.exports = require('./netlify/functions/purchase-order-receive.js')

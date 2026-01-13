@@ -10,7 +10,7 @@ type StockMovementRow = {
   reason: string | null;
   created_by: string | null;
   created_at: string;
-  product: { name: string } | null;
+  product: { name: string }[] | null;
 };
 
 export default function StockMovements() {
@@ -93,7 +93,7 @@ export default function StockMovements() {
   const filteredMovements = useMemo(() => {
     const term = search.trim().toLowerCase();
     return movements.filter((move) => {
-      const name = move.product?.name ?? "";
+      const name = move.product?.[0]?.name ?? "";
       const matchesName = term ? name.toLowerCase().includes(term) : true;
       const matchesType =
         typeFilter === "all" ? true : move.movement_type === typeFilter;
@@ -148,7 +148,7 @@ export default function StockMovements() {
                 filteredMovements.map((move) => (
                   <tr key={move.id}>
                     <td>{new Date(move.created_at).toLocaleString()}</td>
-                    <td>{move.product?.name ?? "Unknown"}</td>
+                    <td>{move.product?.[0]?.name ?? "Unknown"}</td>
                     <td>{move.movement_type}</td>
                     <td>{move.qty_change}</td>
                     <td>{move.reason ?? "-"}</td>

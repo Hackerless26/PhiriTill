@@ -7970,6 +7970,7 @@ __export(branch_upsert_exports, {
   handler: () => handler
 });
 module.exports = __toCommonJS(branch_upsert_exports);
+var import_buffer = require("buffer");
 
 // node_modules/@supabase/supabase-js/dist/index.mjs
 var dist_exports = {};
@@ -12805,6 +12806,17 @@ function jsonResponse(statusCode, body) {
     body: JSON.stringify(body)
   };
 }
+function getUserIdFromToken(token) {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/").padEnd(parts[1].length + (4 - parts[1].length % 4) % 4, "=");
+  try {
+    const decoded = JSON.parse(import_buffer.Buffer.from(payload, "base64").toString("utf8"));
+    return typeof decoded.sub === "string" ? decoded.sub : null;
+  } catch {
+    return null;
+  }
+}
 var handler = async (event) => {
   try {
     if (!event.body) {
@@ -12815,11 +12827,11 @@ var handler = async (event) => {
     if (!token) {
       return jsonResponse(401, { error: "Missing auth token." });
     }
-    const { data: authData, error: authError } = await supabaseAnon.auth.getUser(token);
-    if (authError || !authData.user) {
+    const userId = getUserIdFromToken(token);
+    if (!userId) {
       return jsonResponse(401, { error: "Invalid auth token." });
     }
-    const { data: profile, error: profileError } = await supabaseService.from("profiles").select("role").eq("user_id", authData.user.id).single();
+    const { data: profile, error: profileError } = await supabaseService.from("profiles").select("role").eq("user_id", userId).single();
     if (profileError || !profile || profile.role !== "admin") {
       return jsonResponse(403, { error: "Not authorized." });
     }

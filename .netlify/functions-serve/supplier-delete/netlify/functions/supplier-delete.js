@@ -7964,12 +7964,13 @@ var require_main3 = __commonJS({
   }
 });
 
-// netlify/functions/purchase-order-create.ts
-var purchase_order_create_exports = {};
-__export(purchase_order_create_exports, {
+// netlify/functions/supplier-delete.ts
+var supplier_delete_exports = {};
+__export(supplier_delete_exports, {
   handler: () => handler
 });
-module.exports = __toCommonJS(purchase_order_create_exports);
+module.exports = __toCommonJS(supplier_delete_exports);
+var import_buffer = require("buffer");
 
 // node_modules/@supabase/supabase-js/dist/index.mjs
 var dist_exports = {};
@@ -12787,16 +12788,6 @@ if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
 var supabaseAnon = createClient(supabaseUrl, supabaseAnonKey, {
   auth: { persistSession: false }
 });
-function createUserClient(accessToken) {
-  return createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { persistSession: false },
-    global: {
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
-    }
-  });
-}
 var supabaseService = createClient(
   supabaseUrl,
   supabaseServiceRoleKey,
@@ -12805,7 +12796,7 @@ var supabaseService = createClient(
   }
 );
 
-// netlify/functions/purchase-order-create.ts
+// netlify/functions/supplier-delete.ts
 function jsonResponse(statusCode, body) {
   return {
     statusCode,
@@ -12814,6 +12805,17 @@ function jsonResponse(statusCode, body) {
     },
     body: JSON.stringify(body)
   };
+}
+function getUserIdFromToken(token) {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/").padEnd(parts[1].length + (4 - parts[1].length % 4) % 4, "=");
+  try {
+    const decoded = JSON.parse(import_buffer.Buffer.from(payload, "base64").toString("utf8"));
+    return typeof decoded.sub === "string" ? decoded.sub : null;
+  } catch {
+    return null;
+  }
 }
 var handler = async (event) => {
   try {
@@ -12825,34 +12827,23 @@ var handler = async (event) => {
     if (!token) {
       return jsonResponse(401, { error: "Missing auth token." });
     }
+    const userId = getUserIdFromToken(token);
+    if (!userId) {
+      return jsonResponse(401, { error: "Invalid auth token." });
+    }
+    const { data: profile, error: profileError } = await supabaseService.from("profiles").select("role").eq("user_id", userId).single();
+    if (profileError || !profile || profile.role === "cashier") {
+      return jsonResponse(403, { error: "Not authorized." });
+    }
     const payload = JSON.parse(event.body);
-    if (!payload.supplier_id) {
-      return jsonResponse(400, { error: "Supplier is required." });
+    if (!payload.id) {
+      return jsonResponse(400, { error: "Supplier ID is required." });
     }
-    if (!payload.items || !payload.items.length) {
-      return jsonResponse(400, { error: "At least one item is required." });
-    }
-    const supabaseUser = createUserClient(token);
-    const { data, error } = await supabaseUser.rpc("create_purchase_order", {
-      p_supplier_id: payload.supplier_id,
-      p_reference: payload.reference ?? null,
-      p_items: payload.items,
-      p_branch_id: payload.branch_id ?? null
-    });
+    const { error } = await supabaseService.from("suppliers").delete().eq("id", payload.id);
     if (error) {
-      const message = error.message || "Request failed.";
-      if (message.includes("Not authenticated")) {
-        return jsonResponse(401, { error: message });
-      }
-      if (message.includes("Not allowed")) {
-        return jsonResponse(403, { error: message });
-      }
-      return jsonResponse(400, { error: message });
+      return jsonResponse(400, { error: error.message });
     }
-    return jsonResponse(200, {
-      status: "ok",
-      purchase_order_id: data
-    });
+    return jsonResponse(200, { status: "ok" });
   } catch (error) {
     return jsonResponse(500, { error: "Unexpected server error." });
   }
@@ -12861,4 +12852,4 @@ var handler = async (event) => {
 0 && (module.exports = {
   handler
 });
-//# sourceMappingURL=purchase-order-create.js.map
+//# sourceMappingURL=supplier-delete.js.map

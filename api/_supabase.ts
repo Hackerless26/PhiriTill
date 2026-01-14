@@ -1,12 +1,21 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const requireEnv = (value: string | undefined, name: string): string => {
+  if (!value) {
+    throw new Error(`Missing Supabase environment variable: ${name}`);
+  }
+  return value;
+};
 
-if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
-  throw new Error("Missing Supabase environment variables for functions.");
-}
+const supabaseUrl = requireEnv(process.env.SUPABASE_URL, "SUPABASE_URL");
+const supabaseAnonKey = requireEnv(
+  process.env.SUPABASE_ANON_KEY,
+  "SUPABASE_ANON_KEY"
+);
+const supabaseServiceRoleKey = requireEnv(
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  "SUPABASE_SERVICE_ROLE_KEY"
+);
 
 export const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey, {
   auth: { persistSession: false },
@@ -23,10 +32,6 @@ export function createUserClient(accessToken: string) {
   });
 }
 
-export const supabaseService = createClient(
-  supabaseUrl,
-  supabaseServiceRoleKey,
-  {
-    auth: { persistSession: false },
-  }
-);
+export const supabaseService = createClient(supabaseUrl, supabaseServiceRoleKey, {
+  auth: { persistSession: false },
+});

@@ -29,7 +29,7 @@ export default function StockMovements() {
       let query = supabase
         .from("stock_movements")
         .select(
-          "id,product_id,qty_change,movement_type,reason,created_by,created_at,product:products(name)"
+          "id,product_id,qty_change,movement_type,reason,created_by,created_at,product:products!inner(name)"
         )
         .order("created_at", { ascending: false });
       if (selectedBranchId) {

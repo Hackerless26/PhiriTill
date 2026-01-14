@@ -992,10 +992,9 @@ select {
   left: 0;
   right: 0;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  overflow-x: hidden;
-  padding: 0.6rem 0.6rem 0.8rem;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.8rem 0.8rem 1rem;
   background: rgba(255, 255, 255, 0.96);
   border-top: 1px solid rgba(22, 63, 49, 0.08);
   backdrop-filter: blur(8px);
@@ -1005,7 +1004,7 @@ select {
   text-decoration: none;
   color: #1d2b2a;
   font-weight: 600;
-  padding: 0.35rem 0.7rem;
+  padding: 0.4rem 0.8rem;
   border-radius: 999px;
   white-space: nowrap;
 }

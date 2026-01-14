@@ -1,6 +1,6 @@
-import { supabaseService } from "./_supabase";
-import { getUserIdFromToken } from "./_auth";
-import getAuthToken, { parseBody } from "./_request";
+import { supabaseService } from "./_supabase.js";
+import { getUserIdFromToken } from "./_auth.js";
+import getAuthToken, { parseBody } from "./_request.js";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
@@ -70,3 +70,4 @@ export default async function handler(req: any, res: any) {
 
   return res.status(200).json({ status: "ok", supplier_id: data.id });
 }
+

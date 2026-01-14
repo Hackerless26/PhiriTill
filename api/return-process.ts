@@ -1,5 +1,5 @@
-import { createUserClient } from "./_supabase";
-import getAuthToken, { parseBody } from "./_request";
+import { createUserClient } from "./_supabase.js";
+import getAuthToken, { parseBody } from "./_request.js";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
@@ -45,3 +45,4 @@ export default async function handler(req: any, res: any) {
 
   return res.status(200).json({ status: "ok", return_id: data });
 }
+

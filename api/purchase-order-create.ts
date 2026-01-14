@@ -1,5 +1,5 @@
-import { createUserClient } from "./_supabase";
-import getAuthToken, { parseBody } from "./_request";
+import { createUserClient } from "./_supabase.js";
+import getAuthToken, { parseBody } from "./_request.js";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
@@ -48,3 +48,4 @@ export default async function handler(req: any, res: any) {
     purchase_order_id: data,
   });
 }
+

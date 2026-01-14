@@ -25,12 +25,7 @@ const navItems = [
   { to: "/settings", label: "Settings" },
 ];
 
-const mobileNavItems = [
-  { to: "/", label: "Home" },
-  { to: "/sell", label: "Sales" },
-  { to: "/products", label: "Products" },
-  { to: "/reports", label: "Reports" },
-];
+const mobileNavItems = navItems;
 
 export default function AppLayout() {
   const { user, signOut, branches, selectedBranchId, setSelectedBranchId, products } =

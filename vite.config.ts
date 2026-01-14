@@ -4,7 +4,6 @@ import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   appType: "spa",
-  assetsInclude: ["**/*.html"],
   server: {
     port: 5174,
     strictPort: true,

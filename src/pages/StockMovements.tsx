@@ -49,7 +49,7 @@ export default function StockMovements() {
           return;
         }
         const { data: productRows, error: productError } = await supabase
-          .from("products_public")
+          .from("products")
           .select("id,name")
           .in("id", productIds);
         if (productError || !productRows) {

@@ -3,7 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { useApp } from "../lib/appContext";
 
 export default function Login() {
-  const { user, signIn, signUp, signInWithGoogle } = useApp();
+  const {
+    user,
+    signIn,
+    signUp,
+    signInWithGoogle,
+    verifyPhoneOtp,
+    resendPhoneOtp,
+  } = useApp();
   const navigate = useNavigate();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -12,6 +19,9 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [busy, setBusy] = useState(false);
+  const [otpMode, setOtpMode] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpPhone, setOtpPhone] = useState("");
 
   const handleSubmit = async () => {
     setError(null);
@@ -33,7 +43,35 @@ export default function Login() {
       setError(signupResult.error);
       return;
     }
+    if (signupResult.needsVerification && signupResult.phone) {
+      setOtpPhone(signupResult.phone);
+      setOtpMode(true);
+      setOtpCode("");
+      return;
+    }
     navigate("/");
+  };
+
+  const handleVerify = async () => {
+    setError(null);
+    setBusy(true);
+    const result = await verifyPhoneOtp(otpPhone, otpCode.trim());
+    setBusy(false);
+    if (result) {
+      setError(result);
+      return;
+    }
+    navigate("/");
+  };
+
+  const handleResend = async () => {
+    setError(null);
+    setBusy(true);
+    const result = await resendPhoneOtp(otpPhone);
+    setBusy(false);
+    if (result) {
+      setError(result);
+    }
   };
 
   if (user) {
@@ -87,7 +125,7 @@ export default function Login() {
         </div>
         <div className="auth">
           <div className="auth__fields">
-            {mode === "signup" ? (
+            {mode === "signup" && !otpMode ? (
               <div className="field-row">
                 <label className="field">
                   <span>First name</span>
@@ -110,55 +148,81 @@ export default function Login() {
               </div>
             ) : null}
             <label className="field">
-              <span>{mode === "signin" ? "Email or phone" : "Email"}</span>
+              <span>Email or phone</span>
               <input
                 type="text"
-                placeholder={
-                  mode === "signin"
-                    ? "email@store.com or +260..."
-                    : "email@store.com"
-                }
+                placeholder="email@store.com or +260..."
                 value={identifier}
                 onChange={(event) => setIdentifier(event.target.value)}
+                disabled={otpMode}
               />
             </label>
-            <label className="field">
-              <span>Password</span>
-              <input
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            </label>
+            {!otpMode ? (
+              <label className="field">
+                <span>Password</span>
+                <input
+                  type="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
+              </label>
+            ) : (
+              <label className="field">
+                <span>Verification code</span>
+                <input
+                  type="text"
+                  placeholder="Enter SMS code"
+                  value={otpCode}
+                  onChange={(event) => setOtpCode(event.target.value)}
+                />
+              </label>
+            )}
           </div>
           {error ? <p className="error">{error}</p> : null}
           <div className="auth__actions">
-            <button className="app__primary" onClick={handleSubmit}>
-              {busy
-                ? "Working..."
-                : mode === "signin"
-                    ? "Sign in"
-                    : "Create account"}
-            </button>
+            {!otpMode ? (
+              <button className="app__primary" onClick={handleSubmit}>
+                {busy
+                  ? "Working..."
+                  : mode === "signin"
+                      ? "Sign in"
+                      : "Create account"}
+              </button>
+            ) : (
+              <button className="app__primary" onClick={handleVerify}>
+                {busy ? "Verifying..." : "Verify phone"}
+              </button>
+            )}
             <button
               className="app__ghost"
               onClick={() =>
                 setMode((prev) => (prev === "signin" ? "signup" : "signin"))
               }
+              disabled={otpMode}
             >
               {mode === "signin" ? "Need an account?" : "Have an account?"}
             </button>
+            {otpMode ? (
+              <button className="app__ghost" onClick={handleResend}>
+                Resend code
+              </button>
+            ) : null}
             <button
               className="app__ghost"
               onClick={() => {
                 setError(null);
                 void signInWithGoogle();
               }}
+              disabled={otpMode}
             >
               Continue with Google
             </button>
           </div>
+          <p className="auth-hint muted">
+            Tip: Use E.164 phone format (e.g. +2609...) if signing up with
+            phone.
+          </p>
         </div>
       </div>
     </section>

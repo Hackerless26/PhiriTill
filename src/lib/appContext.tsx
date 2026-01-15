@@ -17,8 +17,10 @@ type AppContextValue = {
     lastName: string,
     email: string,
     password: string
-  ) => Promise<{ error: string | null }>;
+  ) => Promise<{ error: string | null; needsVerification?: boolean; phone?: string }>;
   signInWithGoogle: () => Promise<string | null>;
+  verifyPhoneOtp: (phone: string, code: string) => Promise<string | null>;
+  resendPhoneOtp: (phone: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   products: Product[];
   loadingProducts: boolean;
@@ -249,20 +251,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ) => {
         const first = firstName.trim();
         const last = lastName.trim();
-        const trimmedEmail = email.trim();
+        const trimmed = email.trim();
         if (!first || !last) {
           return { error: "Enter your first and last name." };
-        }
-        if (!trimmedEmail || !trimmedEmail.includes("@")) {
-          return { error: "Enter a valid email address." };
         }
         if (!password.trim()) {
           return { error: "Password cannot be empty." };
         }
+        const payload = trimmed.includes("@")
+          ? { email: trimmed, password }
+          : { phone: normalizePhone(trimmed), password };
+        if (!payload.phone && !payload.email) {
+          return {
+            error: "Enter a valid email or phone number (E.164, e.g. +260...).",
+          };
+        }
         const fullName = `${first} ${last}`.trim();
         const { error } = await supabase.auth.signUp({
-          email: trimmedEmail,
-          password,
+          ...payload,
           options: {
             data: {
               full_name: fullName,
@@ -274,6 +280,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (error) {
           return { error: error.message };
         }
+        if (payload.phone) {
+          return {
+            error: null,
+            needsVerification: true,
+            phone: payload.phone,
+          };
+        }
         return { error: null };
       },
       signInWithGoogle: async () => {
@@ -282,6 +295,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
           options: {
             redirectTo: window.location.origin,
           },
+        });
+        return error ? error.message : null;
+      },
+      verifyPhoneOtp: async (phone: string, code: string) => {
+        const normalized = normalizePhone(phone);
+        if (!normalized) {
+          return "Enter a valid phone number.";
+        }
+        const { error } = await supabase.auth.verifyOtp({
+          phone: normalized,
+          token: code,
+          type: "sms",
+        });
+        return error ? error.message : null;
+      },
+      resendPhoneOtp: async (phone: string) => {
+        const normalized = normalizePhone(phone);
+        if (!normalized) {
+          return "Enter a valid phone number.";
+        }
+        const { error } = await supabase.auth.signInWithOtp({
+          phone: normalized,
         });
         return error ? error.message : null;
       },

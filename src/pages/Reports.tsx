@@ -10,7 +10,7 @@ type SaleItemRow = {
   quantity: number;
   price: number;
   cost: number;
-  product: { name: string }[] | null;
+  product: { name: string } | null;
 };
 
 type SaleRow = {
@@ -18,6 +18,7 @@ type SaleRow = {
   receipt_no: string;
   total: number;
   created_at: string;
+  created_by: string | null;
   sale_items: SaleItemRow[];
 };
 
@@ -28,6 +29,7 @@ export default function Reports() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState<"today" | "week" | "month">("today");
+  const [profileNames, setProfileNames] = useState<Record<string, string>>({});
 
   const loadReports = async () => {
     setLoading(true);
@@ -36,7 +38,7 @@ export default function Reports() {
       let salesPromise = supabase
         .from("sales")
         .select(
-          "id,receipt_no,total,created_at,sale_items(product_id,quantity,price,cost,product:products(name))"
+          "id,receipt_no,total,created_at,created_by,sale_items(product_id,quantity,price,cost,product:products(name))"
         )
         .order("created_at", { ascending: false });
 
@@ -59,6 +61,31 @@ export default function Reports() {
   useEffect(() => {
     loadReports();
   }, [selectedBranchId]);
+
+  useEffect(() => {
+    const ids = sales
+      .map((sale) => sale.created_by)
+      .filter((id): id is string => Boolean(id));
+    if (!ids.length) {
+      setProfileNames({});
+      return;
+    }
+
+    supabase
+      .from("profiles")
+      .select("user_id,full_name")
+      .in("user_id", ids)
+      .then(({ data, error: fetchError }) => {
+        if (fetchError || !data) return;
+        const map: Record<string, string> = {};
+        data.forEach((profile) => {
+          if (profile.user_id) {
+            map[profile.user_id] = profile.full_name ?? profile.user_id;
+          }
+        });
+        setProfileNames(map);
+      });
+  }, [sales]);
 
   useEffect(() => {
     const channel = supabase
@@ -109,7 +136,7 @@ export default function Reports() {
     >();
     filteredSales.forEach((sale) => {
       (sale.sale_items ?? []).forEach((item) => {
-        const name = item.product?.[0]?.name ?? "Unknown";
+        const name = item.product?.name ?? "Unknown";
         const entry = productMap.get(item.product_id) ?? {
           name,
           qty: 0,
@@ -185,8 +212,11 @@ export default function Reports() {
       filteredSales.forEach((sale) => {
         ensureSpace(lineHeight);
         const itemCount = sale.sale_items?.length ?? 0;
+        const userName = sale.created_by
+          ? profileNames[sale.created_by] ?? sale.created_by
+          : "Unknown";
         doc.text(
-          `${sale.receipt_no} | ${new Date(sale.created_at).toLocaleString()} | Items ${itemCount} | ${formatZmw(sale.total)}`,
+          `${sale.receipt_no} | ${new Date(sale.created_at).toLocaleString()} | ${userName} | Items ${itemCount} | ${formatZmw(sale.total)}`,
           14,
           y
         );

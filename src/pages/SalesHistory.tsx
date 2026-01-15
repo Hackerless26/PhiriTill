@@ -9,7 +9,13 @@ type SaleRow = {
   receipt_no: string;
   total: number;
   created_at: string;
-  sale_items: { id: string }[];
+  created_by: string | null;
+  sale_items: {
+    id: string;
+    quantity: number;
+    price: number;
+    product: { name: string } | null;
+  }[];
 };
 
 export default function SalesHistory() {
@@ -18,6 +24,8 @@ export default function SalesHistory() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [profileNames, setProfileNames] = useState<Record<string, string>>({});
+  const [selectedSale, setSelectedSale] = useState<SaleRow | null>(null);
 
   const loadSales = () => {
     setLoading(true);
@@ -26,7 +34,9 @@ export default function SalesHistory() {
       try {
         let query = supabase
           .from("sales")
-          .select("id,receipt_no,total,created_at,sale_items(id)")
+          .select(
+            "id,receipt_no,total,created_at,created_by,sale_items(id,quantity,price,product:products(name))"
+          )
           .order("created_at", { ascending: false });
         if (selectedBranchId) {
           query = query.eq("branch_id", selectedBranchId);
@@ -47,6 +57,31 @@ export default function SalesHistory() {
   useEffect(() => {
     loadSales();
   }, [selectedBranchId]);
+
+  useEffect(() => {
+    const ids = sales
+      .map((sale) => sale.created_by)
+      .filter((id): id is string => Boolean(id));
+    if (!ids.length) {
+      setProfileNames({});
+      return;
+    }
+
+    supabase
+      .from("profiles")
+      .select("user_id,full_name")
+      .in("user_id", ids)
+      .then(({ data, error: fetchError }) => {
+        if (fetchError || !data) return;
+        const map: Record<string, string> = {};
+        data.forEach((profile) => {
+          if (profile.user_id) {
+            map[profile.user_id] = profile.full_name ?? profile.user_id;
+          }
+        });
+        setProfileNames(map);
+      });
+  }, [sales]);
 
   useEffect(() => {
     const channel = supabase
@@ -102,8 +137,11 @@ export default function SalesHistory() {
       filteredSales.forEach((sale) => {
         ensureSpace(lineHeight);
         const itemCount = sale.sale_items?.length ?? 0;
+        const userName = sale.created_by
+          ? profileNames[sale.created_by] ?? sale.created_by
+          : "Unknown";
         doc.text(
-          `${sale.receipt_no} | ${new Date(sale.created_at).toLocaleString()} | Items ${itemCount} | ${formatZmw(sale.total)}`,
+          `${sale.receipt_no} | ${new Date(sale.created_at).toLocaleString()} | ${userName} | Items ${itemCount} | ${formatZmw(sale.total)}`,
           14,
           y
         );
@@ -116,6 +154,11 @@ export default function SalesHistory() {
 
     doc.save("sales-history.pdf");
   };
+
+  const renderCashierName = (sale: SaleRow) =>
+    sale.created_by
+      ? profileNames[sale.created_by] ?? sale.created_by
+      : "Unknown";
 
   return (
     <div className="page">
@@ -146,8 +189,10 @@ export default function SalesHistory() {
               <tr>
                 <th>Receipt</th>
                 <th>Date</th>
+                <th>User</th>
                 <th>Items</th>
                 <th>Total</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -156,13 +201,22 @@ export default function SalesHistory() {
                   <tr key={sale.id}>
                     <td>{sale.receipt_no}</td>
                     <td>{new Date(sale.created_at).toLocaleString()}</td>
+                    <td>{renderCashierName(sale)}</td>
                     <td>{sale.sale_items?.length ?? 0}</td>
                     <td>{formatZmw(sale.total)}</td>
+                    <td>
+                      <button
+                        className="app__ghost"
+                        onClick={() => setSelectedSale(sale)}
+                      >
+                        View
+                      </button>
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="empty-row">
+                  <td colSpan={6} className="empty-row">
                     No sales found.
                   </td>
                 </tr>
@@ -171,6 +225,54 @@ export default function SalesHistory() {
           </table>
         </div>
       </section>
+
+      {selectedSale ? (
+        <div className="modal">
+          <div className="modal__card">
+            <div className="modal__header">
+              <h3>Receipt details</h3>
+              <button
+                className="icon-button"
+                onClick={() => setSelectedSale(null)}
+              >
+                X
+              </button>
+            </div>
+            <div className="receipt">
+              <p className="receipt__title">PoxPOS Receipt</p>
+              <p className="muted">Receipt: {selectedSale.receipt_no}</p>
+              <p className="muted">
+                Date: {new Date(selectedSale.created_at).toLocaleString()}
+              </p>
+              <p className="muted">Cashier: {renderCashierName(selectedSale)}</p>
+              <div className="list">
+                {selectedSale.sale_items.map((item) => (
+                  <div className="list__item" key={item.id}>
+                    <div>
+                      <p className="list__title">
+                        {item.product?.name ?? "Unknown"}
+                      </p>
+                      <p className="muted">Qty {item.quantity}</p>
+                    </div>
+                    <span className="badge badge--ok">
+                      {formatZmw(item.price * item.quantity)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="cart__total">
+                <span>Total</span>
+                <strong>{formatZmw(selectedSale.total)}</strong>
+              </div>
+            </div>
+            <div className="modal__actions">
+              <button className="app__primary" onClick={() => setSelectedSale(null)}>
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -13,12 +13,12 @@ type AppContextValue = {
   loadingAuth: boolean;
   signIn: (email: string, password: string) => Promise<string | null>;
   signUp: (
+    firstName: string,
+    lastName: string,
     email: string,
     password: string
-  ) => Promise<{ error: string | null; needsVerification?: boolean; phone?: string }>;
+  ) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<string | null>;
-  verifyPhoneOtp: (phone: string, code: string) => Promise<string | null>;
-  resendPhoneOtp: (phone: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   products: Product[];
   loadingProducts: boolean;
@@ -230,44 +230,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       loadingAuth,
-      signIn: async (identifier: string, password: string) => {
-        const trimmed = identifier.trim();
-        const payload = trimmed.includes("@")
-          ? { email: trimmed, password }
-          : { phone: normalizePhone(trimmed), password };
-        if (!payload.phone && !payload.email) {
-          return "Enter a valid email or phone number.";
+      signIn: async (email: string, password: string) => {
+        const trimmed = email.trim();
+        if (!trimmed || !trimmed.includes("@")) {
+          return "Enter a valid email address.";
         }
-        const { error } = await supabase.auth.signInWithPassword(payload);
+        const { error } = await supabase.auth.signInWithPassword({
+          email: trimmed,
+          password,
+        });
         return error ? error.message : null;
       },
-      signUp: async (identifier: string, password: string) => {
-        const trimmed = identifier.trim();
-        const isEmail = trimmed.includes("@");
-        const payload = isEmail
-          ? { email: trimmed, password }
-          : { phone: normalizePhone(trimmed), password };
-        if (!payload.phone && !payload.email) {
-          return {
-            error: "Enter a valid email or phone number (E.164, e.g. +260...).",
-          };
+      signUp: async (
+        firstName: string,
+        lastName: string,
+        email: string,
+        password: string
+      ) => {
+        const first = firstName.trim();
+        const last = lastName.trim();
+        const trimmedEmail = email.trim();
+        if (!first || !last) {
+          return { error: "Enter your first and last name." };
         }
-        const fullName = trimmed.includes("@")
-          ? trimmed.split("@")[0]
-          : "User";
+        if (!trimmedEmail || !trimmedEmail.includes("@")) {
+          return { error: "Enter a valid email address." };
+        }
+        if (!password.trim()) {
+          return { error: "Password cannot be empty." };
+        }
+        const fullName = `${first} ${last}`.trim();
         const { error } = await supabase.auth.signUp({
-          ...payload,
-          options: { data: { full_name: fullName } },
+          email: trimmedEmail,
+          password,
+          options: {
+            data: {
+              full_name: fullName,
+              first_name: first,
+              last_name: last,
+            },
+          },
         });
         if (error) {
           return { error: error.message };
-        }
-        if (!isEmail) {
-          return {
-            error: null,
-            needsVerification: true,
-            phone: payload.phone ?? undefined,
-          };
         }
         return { error: null };
       },
@@ -277,28 +282,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           options: {
             redirectTo: window.location.origin,
           },
-        });
-        return error ? error.message : null;
-      },
-      verifyPhoneOtp: async (phone: string, code: string) => {
-        const normalized = normalizePhone(phone);
-        if (!normalized) {
-          return "Enter a valid phone number.";
-        }
-        const { error } = await supabase.auth.verifyOtp({
-          phone: normalized,
-          token: code,
-          type: "sms",
-        });
-        return error ? error.message : null;
-      },
-      resendPhoneOtp: async (phone: string) => {
-        const normalized = normalizePhone(phone);
-        if (!normalized) {
-          return "Enter a valid phone number.";
-        }
-        const { error } = await supabase.auth.signInWithOtp({
-          phone: normalized,
         });
         return error ? error.message : null;
       },
@@ -327,27 +310,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
-}
-
-function normalizePhone(input: string) {
-  if (!input) return "";
-  const cleaned = input.replace(/[\s()-]/g, "");
-  if (cleaned.startsWith("+")) {
-    return /^\+\d{8,15}$/.test(cleaned) ? cleaned : "";
-  }
-  if (cleaned.startsWith("00")) {
-    const normalized = `+${cleaned.slice(2)}`;
-    return /^\+\d{8,15}$/.test(normalized) ? normalized : "";
-  }
-  if (cleaned.startsWith("260")) {
-    const normalized = `+${cleaned}`;
-    return /^\+\d{8,15}$/.test(normalized) ? normalized : "";
-  }
-  if (cleaned.startsWith("0") && cleaned.length >= 9 && cleaned.length <= 10) {
-    const normalized = `+260${cleaned.slice(1)}`;
-    return /^\+\d{8,15}$/.test(normalized) ? normalized : "";
-  }
-  return "";
 }
 
 export function useApp() {

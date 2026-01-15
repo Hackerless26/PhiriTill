@@ -11,7 +11,14 @@ type SaleEntry = {
 };
 
 export default function Sell() {
-  const { products, loadingProducts, reloadProducts, selectedBranchId } =
+  const {
+    products,
+    loadingProducts,
+    reloadProducts,
+    selectedBranchId,
+    profileFullName,
+    user,
+  } =
     useApp();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -137,6 +144,7 @@ export default function Sell() {
         payment_method: "cash",
         total,
         created_at: new Date().toISOString(),
+        cashier: profileFullName ?? user?.email ?? "User",
         items: items.map((item) => ({
           name: item.product.name,
           quantity: item.quantity,
@@ -286,6 +294,9 @@ export default function Sell() {
               <p className="muted">
                 Date: {new Date(receipt.created_at).toLocaleString()}
               </p>
+              {receipt.cashier ? (
+                <p className="muted">Cashier: {receipt.cashier}</p>
+              ) : null}
               <div className="list">
                 {receipt.items.map((item, index) => (
                   <div className="list__item" key={`${item.name}-${index}`}>

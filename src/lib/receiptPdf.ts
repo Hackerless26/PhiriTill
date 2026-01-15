@@ -13,6 +13,7 @@ export type ReceiptData = {
   total: number;
   items: ReceiptItem[];
   created_at: string;
+  cashier?: string;
 };
 
 async function loadLogoDataUrl() {
@@ -55,8 +56,11 @@ export async function generateReceiptPdf(receipt: ReceiptData) {
   doc.setFontSize(10);
   doc.text(`Receipt: ${receipt.receipt_no}`, 14, 40);
   doc.text(`Date: ${new Date(receipt.created_at).toLocaleString()}`, 14, 46);
+  if (receipt.cashier) {
+    doc.text(`Cashier: ${receipt.cashier}`, 14, 52);
+  }
 
-  let y = 58;
+  let y = receipt.cashier ? 64 : 58;
   doc.setFontSize(11);
   doc.text("Item", 14, y);
   doc.text("Qty", 120, y);

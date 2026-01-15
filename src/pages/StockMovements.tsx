@@ -10,7 +10,7 @@ type StockMovementRow = {
   reason: string | null;
   created_by: string | null;
   created_at: string;
-  product: { name: string }[] | null;
+  product_name?: string | null;
 };
 
 export default function StockMovements() {
@@ -29,7 +29,7 @@ export default function StockMovements() {
       let query = supabase
         .from("stock_movements")
         .select(
-          "id,product_id,qty_change,movement_type,reason,created_by,created_at,product:products!inner(name)"
+          "id,product_id,qty_change,movement_type,reason,created_by,created_at"
         )
         .order("created_at", { ascending: false });
       if (selectedBranchId) {
@@ -40,7 +40,31 @@ export default function StockMovements() {
         setError(res.error.message);
         setMovements([]);
       } else {
-        setMovements(res.data ?? []);
+        const rows = res.data ?? [];
+        const productIds = Array.from(
+          new Set(rows.map((row) => row.product_id).filter(Boolean))
+        );
+        if (!productIds.length) {
+          setMovements(rows);
+          return;
+        }
+        const { data: productRows, error: productError } = await supabase
+          .from("products_public")
+          .select("id,name")
+          .in("id", productIds);
+        if (productError || !productRows) {
+          setMovements(rows);
+          return;
+        }
+        const nameMap = new Map(
+          productRows.map((product) => [product.id, product.name])
+        );
+        setMovements(
+          rows.map((row) => ({
+            ...row,
+            product_name: nameMap.get(row.product_id) ?? null,
+          }))
+        );
       }
     } finally {
       setLoading(false);
@@ -91,9 +115,9 @@ export default function StockMovements() {
   }, []);
 
   const filteredMovements = useMemo(() => {
-      const term = search.trim().toLowerCase();
+    const term = search.trim().toLowerCase();
     return movements.filter((move) => {
-      const name = move.product?.[0]?.name ?? "";
+      const name = move.product_name ?? "";
       const matchesName = term ? name.toLowerCase().includes(term) : true;
       const matchesType =
         typeFilter === "all" ? true : move.movement_type === typeFilter;
@@ -148,7 +172,7 @@ export default function StockMovements() {
                 filteredMovements.map((move) => (
                   <tr key={move.id}>
                     <td>{new Date(move.created_at).toLocaleString()}</td>
-                    <td>{move.product?.[0]?.name ?? "Unknown"}</td>
+                    <td>{move.product_name ?? "Unknown"}</td>
                     <td>{move.movement_type}</td>
                     <td>{move.qty_change}</td>
                     <td>{move.reason ?? "-"}</td>

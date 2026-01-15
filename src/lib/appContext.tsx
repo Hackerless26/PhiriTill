@@ -11,7 +11,7 @@ type UserInfo = {
 type AppContextValue = {
   user: UserInfo | null;
   loadingAuth: boolean;
-  signIn: (email: string, password: string) => Promise<string | null>;
+  signIn: (identifier: string, password: string) => Promise<string | null>;
   signUp: (
     firstName: string,
     lastName: string,
@@ -230,15 +230,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       loadingAuth,
-      signIn: async (email: string, password: string) => {
-        const trimmed = email.trim();
-        if (!trimmed || !trimmed.includes("@")) {
-          return "Enter a valid email address.";
+      signIn: async (identifier: string, password: string) => {
+        const trimmed = identifier.trim();
+        const payload = trimmed.includes("@")
+          ? { email: trimmed, password }
+          : { phone: normalizePhone(trimmed), password };
+        if (!payload.phone && !payload.email) {
+          return "Enter a valid email or phone number.";
         }
-        const { error } = await supabase.auth.signInWithPassword({
-          email: trimmed,
-          password,
-        });
+        const { error } = await supabase.auth.signInWithPassword(payload);
         return error ? error.message : null;
       },
       signUp: async (
@@ -310,6 +310,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+}
+
+function normalizePhone(input: string) {
+  if (!input) return "";
+  const cleaned = input.replace(/[\s()-]/g, "");
+  if (cleaned.startsWith("+")) {
+    return /^\+\d{8,15}$/.test(cleaned) ? cleaned : "";
+  }
+  if (cleaned.startsWith("00")) {
+    const normalized = `+${cleaned.slice(2)}`;
+    return /^\+\d{8,15}$/.test(normalized) ? normalized : "";
+  }
+  if (cleaned.startsWith("260")) {
+    const normalized = `+${cleaned}`;
+    return /^\+\d{8,15}$/.test(normalized) ? normalized : "";
+  }
+  if (cleaned.startsWith("0") && cleaned.length >= 9 && cleaned.length <= 10) {
+    const normalized = `+260${cleaned.slice(1)}`;
+    return /^\+\d{8,15}$/.test(normalized) ? normalized : "";
+  }
+  return "";
 }
 
 export function useApp() {

@@ -5,7 +5,7 @@ import { useApp } from "../lib/appContext";
 export default function Login() {
   const { user, signIn, signUp, signInWithGoogle } = useApp();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -16,7 +16,7 @@ export default function Login() {
   const handleSubmit = async () => {
     setError(null);
     setBusy(true);
-    const result = mode === "signin" ? await signIn(email, password) : null;
+    const result = mode === "signin" ? await signIn(identifier, password) : null;
     if (mode === "signin") {
       setBusy(false);
       if (result) {
@@ -27,7 +27,7 @@ export default function Login() {
       return;
     }
 
-    const signupResult = await signUp(firstName, lastName, email, password);
+    const signupResult = await signUp(firstName, lastName, identifier, password);
     setBusy(false);
     if (signupResult.error) {
       setError(signupResult.error);
@@ -110,12 +110,16 @@ export default function Login() {
               </div>
             ) : null}
             <label className="field">
-              <span>Email</span>
+              <span>{mode === "signin" ? "Email or phone" : "Email"}</span>
               <input
-                type="email"
-                placeholder="email@store.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                type="text"
+                placeholder={
+                  mode === "signin"
+                    ? "email@store.com or +260..."
+                    : "email@store.com"
+                }
+                value={identifier}
+                onChange={(event) => setIdentifier(event.target.value)}
               />
             </label>
             <label className="field">

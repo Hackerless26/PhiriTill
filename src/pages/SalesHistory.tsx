@@ -14,7 +14,7 @@ type SaleRow = {
     id: string;
     quantity: number;
     price: number;
-    product: { name: string } | null;
+    product: { name: string }[] | null;
   }[];
 };
 
@@ -250,7 +250,7 @@ export default function SalesHistory() {
                   <div className="list__item" key={item.id}>
                     <div>
                       <p className="list__title">
-                        {item.product?.name ?? "Unknown"}
+                        {item.product?.[0]?.name ?? "Unknown"}
                       </p>
                       <p className="muted">Qty {item.quantity}</p>
                     </div>

@@ -10,7 +10,7 @@ type SaleItemRow = {
   quantity: number;
   price: number;
   cost: number;
-  product: { name: string } | null;
+  product: { name: string }[] | null;
 };
 
 type SaleRow = {
@@ -136,7 +136,7 @@ export default function Reports() {
     >();
     filteredSales.forEach((sale) => {
       (sale.sale_items ?? []).forEach((item) => {
-        const name = item.product?.name ?? "Unknown";
+        const name = item.product?.[0]?.name ?? "Unknown";
         const entry = productMap.get(item.product_id) ?? {
           name,
           qty: 0,
